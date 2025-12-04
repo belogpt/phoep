@@ -1,11 +1,11 @@
 # Yealink Remote Phonebook Manager
 
-Веб-приложение на Flask для работы с удалённой телефонной книгой Yealink. Позволяет редактировать XML-файл `RemotePhonebook.xml` через браузер, импортировать и экспортировать книгу в Excel, управлять группами и путями к файлам. Интерфейс и описания на русском языке. Предназначено для внутреннего сервера (Linux/РЕД ОС).
+Веб-приложение на Flask для работы с удалённой телефонной книгой Yealink. Позволяет редактировать XML-файл телефонной книги (по умолчанию `rem.xml`) через браузер, импортировать и экспортировать книгу в Excel, управлять группами и путями к файлам. Интерфейс и описания на русском языке. Предназначено для внутреннего сервера (Linux/РЕД ОС) с уже настроенным веб-сервером, отдающим каталог `/var/www/html`.
 
 ## Архитектура проекта
 - **Backend:** Flask (Python 3) + стандартная библиотека `xml.etree.ElementTree` для чтения/записи XML.
 - **Frontend:** HTML5/CSS/JavaScript с Bootstrap из CDN.
-- **Хранение:** исходный файл `RemotePhonebook.xml`; Excel импорт/экспорт через `pandas`, `openpyxl`, `xlrd`.
+- **Хранение:** основной файл телефонной книги (по умолчанию `rem.xml`); Excel импорт/экспорт через `pandas`, `openpyxl`, `xlrd`.
 - **Безопасность:** простая HTTP Basic Auth (логин/пароль через переменные окружения).
 
 ## Структура репозитория
@@ -22,7 +22,6 @@ templates/
   settings.html, import_result.html
 static/
   styles.css, main.js
-data/                    # каталог по умолчанию для RemotePhonebook.xml
 Config.cfg               # пример конфигурации
 Dockerfile
 docker-compose.yml
@@ -46,19 +45,19 @@ requirements.txt
 5. Basic Auth: переменные `BASIC_AUTH_USERNAME` и `BASIC_AUTH_PASSWORD` (по умолчанию `admin`/`admin`). Для безопасности измените их сразу после запуска.
 6. Конфигурация путей:
    - Файл `Config.cfg` в корне проекта.
-   - Секция `[OutPutPath]`, ключ `RemotePhoneDir` — каталог, где хранится `RemotePhonebook.xml`.
+   - Секция `[OutPutPath]`, ключ `RemotePhoneDir` — каталог, где хранится XML телефонной книги.
    - При первом запуске создаётся `Config.cfg` с
      ```
-     RemotePhoneDir=./data
-     LocalPhoneDir=./data
+     RemotePhoneDir=/app/data
+     LocalPhoneDir=/app/data
      ```
-   - Каталог создаётся автоматически, файл телефонной книги тоже (пустой каркас).
+   - Каталог создаётся автоматически, файл телефонной книги (`rem.xml` по умолчанию) тоже.
 
 ## Использование
 - Главная страница `/` — список контактов, фильтр по группе, поиск, добавление/редактирование/удаление контактов.
 - Управление группами `/groups` — переименование и удаление групп (можно удалять вместе с контактами или запретить).
-- Настройки `/settings` — изменение `RemotePhoneDir` (сохранение в `Config.cfg`).
-- Скачивание XML: кнопка «Скачать XML» или прямой URL `http://<server>:5000/RemotePhonebook.xml` (этот же URL указывать в телефоне Yealink в разделе Directory → Remote Phone Book).
+- Настройки `/settings` — изменение `RemotePhoneDir` (сохранение в `Config.cfg`); файл телефонной книги ищется по имени из переменной окружения `PHONEBOOK_FILENAME` (по умолчанию `rem.xml`).
+- Скачивание XML: кнопка «Скачать XML» или прямой URL `http://<server>:5000/RemotePhonebook.xml` (маршрут сохранён для совместимости, имя файла в заголовке соответствует текущему `PHONEBOOK_FILENAME`).
 
 ### Импорт/экспорт Excel
 - Поддерживаются форматы `.xls` и `.xlsx`.
@@ -81,6 +80,12 @@ requirements.txt
 - После удаления контакта пустые группы удаляются (поведение включено по умолчанию в коде).
 
 ## Развёртывание в Docker (Linux/РЕД ОС)
+### Схема хранения
+- Телефонная книга должна лежать в каталоге веб-сервера хоста (например, `/var/www/html`).
+- По умолчанию Docker Compose монтирует `/var/www/html` на хосте в `/app/data` внутри контейнера.
+- Внутри контейнера файл создаётся как `/app/data/rem.xml`, а на хосте — как `/var/www/html/rem.xml` (или с другим именем, если задано `PHONEBOOK_FILENAME`).
+- Если веб-каталог другой, замените путь `/var/www/html` в `docker-compose.yml` на нужный.
+
 ### Установка из репозитория
 1. Установите `git`, `docker` и при необходимости `docker-compose`.
 2. Клонируйте репозиторий и перейдите в каталог проекта:
@@ -88,14 +93,14 @@ requirements.txt
    git clone https://github.com/<your-org>/phoep.git
    cd phoep
    ```
-3. Подготовьте каталог для данных (Config.cfg и RemotePhonebook.xml будут храниться вне контейнера):
-   ```bash
-   mkdir -p data
-   ```
+3. Убедитесь, что веб-сервер отдаёт каталог `/var/www/html` (или свой путь), и там доступно имя файла телефонной книги.
 4. Соберите образ и запустите контейнер (Python уже входит в образ `python:3.11-slim`, ставить его на хосте не нужно):
    ```bash
    docker build -t yealink-phonebook .
-   docker run -d --name yealink-phonebook -p 5000:5000 -v $(pwd)/data:/app/data yealink-phonebook
+   docker run -d --name yealink-phonebook -p 5000:5000 \
+     -v /var/www/html:/app/data \
+     -e PHONEBOOK_FILENAME=rem.xml \
+     yealink-phonebook
    ```
    - Переменные окружения можно передать флагами `-e BASIC_AUTH_USERNAME=admin -e BASIC_AUTH_PASSWORD=admin123 -e APP_PORT=5000`.
 
@@ -104,34 +109,39 @@ requirements.txt
    ```bash
    docker build -t yealink-phonebook .
    ```
-2. Запуск одной командой (можно копировать как есть):
+2. Запуск одной командой (можно копировать как есть, путь `/var/www/html` измените при необходимости):
    ```bash
    docker build -t yealink-phonebook . && \
-   docker run -d --name yealink-phonebook -p 5000:5000 -v $(pwd)/data:/app/data yealink-phonebook
+   docker run -d --name yealink-phonebook -p 5000:5000 \
+     -v /var/www/html:/app/data \
+     yealink-phonebook
    ```
-   - `$(pwd)/data` — локальная папка для данных (Config.cfg и RemotePhonebook.xml сохраняются здесь вне контейнера).
+   - `/var/www/html` — каталог веб-сервера хоста; внутри него появится `rem.xml`.
    - Контейнер слушает порт 5000.
    - Переменные окружения можно передать флагами `-e BASIC_AUTH_USERNAME=admin -e BASIC_AUTH_PASSWORD=admin123 -e APP_PORT=5000`.
 3. Docker Compose:
    ```bash
    docker-compose up -d
    ```
-   `docker-compose.yml` монтирует `./data` в `/app/data` и пробрасывает порт `5000:5000`.
-
-## Безопасность
-- Приложение рассчитано на внутреннюю сеть. В Docker используется dev-сервер Flask; для публичного доступа следует поставить полноценный WSGI (gunicorn) и прокси.
-- Смените стандартные логин/пароль Basic Auth сразу после развёртывания.
+   `docker-compose.yml` монтирует `/var/www/html` в `/app/data` и пробрасывает порт `5000:5000`. Путь можно поменять в файле compose, если веб-каталог отличается.
 
 ## Работа с Yealink
 - В настройках телефона Yealink: Directory → Remote Phone Book.
-- URL: `http://<ip_сервера>:5000/RemotePhonebook.xml` (учитывает Basic Auth, если настроена на телефоне).
+- URL телефонной книги со стороны телефонов: `http://<ip_сервера>/rem.xml` (веб-сервер отдаёт файл из каталога `/var/www/html`).
+- Если задано другое имя файла через `PHONEBOOK_FILENAME` (например `RemotePhonebook.xml`), URL должен совпадать: `http://<ip_сервера>/RemotePhonebook.xml`.
+- Маршрут Flask `/RemotePhonebook.xml` на порту 5000 оставлен для совместимости и для скачивания из веб-интерфейса.
 
 ## Дополнительно
 - Все пути обрабатываются кросс-платформенно через `os.path`.
-- При отсутствии `RemotePhonebook.xml` создаётся файл с каркасом:
+- При отсутствии файла телефонной книги создаётся пустой каркас:
   ```xml
   <?xml version="1.0" encoding="UTF-8"?>
   <YealinkIPPhoneBook>
   </YealinkIPPhoneBook>
   ```
-- При первом старте создаётся каталог `./data`.
+- При первом старте создаётся `Config.cfg` с путями `/app/data`.
+- Имя файла можно переопределить переменной окружения:
+  ```bash
+  PHONEBOOK_FILENAME=RemotePhonebook.xml
+  ```
+  Используйте то же имя в веб-сервере (например, `http://<ip>/RemotePhonebook.xml`).
