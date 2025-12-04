@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block content %}
+<h3>Настройки путей</h3>
+<form method="post" class="card p-3">
+    <div class="mb-3">
+        <label class="form-label">RemotePhoneDir</label>
+        <input class="form-control" type="text" name="remote_dir" value="{{ remote_dir }}" required>
+        <div class="form-text">Каталог, где лежит RemotePhonebook.xml</div>
+    </div>
+    <button class="btn btn-primary" type="submit">Сохранить</button>
+</form>
+{% endblock %}

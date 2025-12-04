@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3>Контакты</h3>
+    <div>
+        <a class="btn btn-primary" href="{{ url_for('phonebook.new_contact') }}">Добавить контакт</a>
+        <a class="btn btn-secondary" href="{{ url_for('phonebook.manage_groups') }}">Добавить/управлять группами</a>
+    </div>
+</div>
+<div class="card mb-3">
+    <div class="card-body">
+        <form class="row g-3" method="get">
+            <div class="col-md-4">
+                <label class="form-label">Фильтр по группе</label>
+                <select class="form-select" name="group">
+                    <option value="">Все</option>
+                    {% for g in groups %}
+                        <option value="{{ g.name }}" {% if group_filter == g.name %}selected{% endif %}>{{ g.name }} ({{ g.contact_count }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Поиск по имени или номеру</label>
+                <input class="form-control" type="text" name="search" value="{{ search }}" placeholder="Например, 8100 или Анна">
+            </div>
+            <div class="col-md-4 align-self-end">
+                <button class="btn btn-primary" type="submit">Применить</button>
+                <a class="btn btn-outline-secondary" href="{{ url_for('phonebook.index') }}">Сбросить</a>
+            </div>
+        </form>
+    </div>
+</div>
+<div class="mb-3 d-flex flex-wrap gap-2">
+    <a class="btn btn-success" href="{{ url_for('phonebook.download_xml') }}">Скачать XML</a>
+    <a class="btn btn-info text-white" href="{{ url_for('phonebook.export_excel') }}">Экспорт в Excel</a>
+    <form class="d-inline" action="{{ url_for('phonebook.import_excel') }}" method="post" enctype="multipart/form-data">
+        <div class="input-group">
+            <input type="file" class="form-control" name="excel_file" accept=".xls,.xlsx" required>
+            <button class="btn btn-warning" type="submit" onclick="return confirm('Импорт заменит текущую книгу. Продолжить?')">Импорт из Excel</button>
+        </div>
+    </form>
+    <div class="alert alert-secondary py-1 px-2 mb-0 ms-auto">
+        Файл загружен из: {{ phonebook_path }}
+    </div>
+</div>
+<div class="table-responsive">
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Группа</th>
+                <th>Имя</th>
+                <th>Рабочий</th>
+                <th>Мобильный</th>
+                <th>Другой</th>
+                <th>Фото (путь)</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if contacts %}
+                {% for contact in contacts %}
+                    <tr>
+                        <td>{{ contact.group }}</td>
+                        <td>{{ contact.name }}</td>
+                        <td>{{ contact.office }}</td>
+                        <td>{{ contact.mobile }}</td>
+                        <td>{{ contact.other }}</td>
+                        <td>{{ contact.photo }}</td>
+                        <td>
+                            <a class="btn btn-sm btn-outline-primary" href="{{ url_for('phonebook.edit_contact', contact_id=contact.contact_id) }}">Редактировать</a>
+                            <form action="{{ url_for('phonebook.delete_contact', contact_id=contact.contact_id) }}" method="post" class="d-inline" onsubmit="return confirmDelete();">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">Удалить</button>
+                            </form>
+                        </td>
+                    </tr>
+                {% endfor %}
+            {% else %}
+                <tr><td colspan="7" class="text-center">Нет контактов</td></tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

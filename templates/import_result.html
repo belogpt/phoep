@@ -1,0 +1,5 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="alert alert-info">Импорт завершён. Загружено контактов: {{ count }}.</div>
+<a class="btn btn-primary" href="{{ url_for('phonebook.index') }}">Вернуться к списку</a>
+{% endblock %}
