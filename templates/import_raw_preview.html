@@ -2,6 +2,11 @@
 {% block content %}
 <h3 class="mb-3">Предпросмотр импорта из таблицы отделов</h3>
 <p>Проверьте, как сотрудники и отделы будут сохранены в телефонной книге.</p>
+{% if missing_numbers %}
+    <div class="alert alert-warning">
+        Найдено строк без внутреннего номера: {{ missing_numbers }}. Такие записи будут пропущены при импорте.
+    </div>
+{% endif %}
 <div class="card mb-3">
     <div class="card-body table-responsive">
         <table class="table table-striped align-middle">

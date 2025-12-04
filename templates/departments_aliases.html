@@ -2,28 +2,45 @@
 {% block content %}
 <h3 class="mb-3">Сохранённые названия отделов</h3>
 <p class="text-muted">Измените сокращения при необходимости и сохраните изменения.</p>
-<form action="{{ url_for('phonebook.manage_department_aliases') }}" method="post" class="card">
+<form action="{{ url_for('phonebook.manage_department_aliases') }}" method="post" class="card" id="aliases-form">
     <div class="card-body">
+        <div class="d-flex flex-wrap gap-2 mb-3">
+            <button type="button" class="btn btn-outline-success" id="add-row">Добавить отдел</button>
+            <button type="button" class="btn btn-outline-danger" id="clear-rows">Очистить список</button>
+        </div>
         <div class="table-responsive">
-            <table class="table table-striped align-middle">
+            <table class="table table-striped align-middle" id="aliases-table">
                 <thead>
                     <tr>
                         <th>Полное название отдела</th>
                         <th>Сокращённое название</th>
+                        <th style="width: 120px;">Действия</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for full, alias in aliases %}
                         <tr>
-                            <td>{{ full }}</td>
                             <td>
-                                <input type="hidden" name="department_names" value="{{ full }}">
-                                <input type="text" class="form-control" name="aliases" value="{{ alias }}" required>
+                                <input type="text" class="form-control" name="department_names" value="{{ full }}" placeholder="Например, Отдел продаж">
+                            </td>
+                            <td>
+                                <input type="text" class="form-control" name="aliases" value="{{ alias }}" placeholder="Например, ОП">
+                            </td>
+                            <td class="text-center">
+                                <button type="button" class="btn btn-sm btn-outline-danger remove-row">Удалить</button>
                             </td>
                         </tr>
                     {% else %}
                         <tr>
-                            <td colspan="2" class="text-center text-muted">Пока нет сохранённых сокращений</td>
+                            <td>
+                                <input type="text" class="form-control" name="department_names" placeholder="Полное название отдела">
+                            </td>
+                            <td>
+                                <input type="text" class="form-control" name="aliases" placeholder="Сокращение">
+                            </td>
+                            <td class="text-center">
+                                <button type="button" class="btn btn-sm btn-outline-danger remove-row">Удалить</button>
+                            </td>
                         </tr>
                     {% endfor %}
                 </tbody>
@@ -35,4 +52,40 @@
         </div>
     </div>
 </form>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const tbody = document.querySelector('#aliases-table tbody');
+
+    function addEmptyRow() {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td><input type="text" class="form-control" name="department_names" placeholder="Полное название отдела"></td>
+            <td><input type="text" class="form-control" name="aliases" placeholder="Сокращение"></td>
+            <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger remove-row">Удалить</button></td>
+        `;
+        tbody.appendChild(row);
+    }
+
+    function ensureAtLeastOneRow() {
+        if (tbody.children.length === 0) {
+            addEmptyRow();
+        }
+    }
+
+    document.getElementById('add-row').addEventListener('click', () => addEmptyRow());
+    document.getElementById('clear-rows').addEventListener('click', () => {
+        tbody.innerHTML = '';
+        addEmptyRow();
+    });
+
+    tbody.addEventListener('click', (event) => {
+        const target = event.target;
+        if (target.classList.contains('remove-row')) {
+            target.closest('tr').remove();
+            ensureAtLeastOneRow();
+        }
+    });
+});
+</script>
 {% endblock %}
