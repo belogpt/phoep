@@ -267,6 +267,15 @@ def delete_contact(contact_id: int) -> None:
     save_contacts(contacts, preserved_groups=preserved)
 
 
+def sort_contacts_by_name() -> None:
+    """Сортирует контакты по ФИО и сохраняет изменение в XML."""
+
+    contacts = load_contacts()
+    contacts.sort(key=lambda c: c.name.casefold())
+    preserved = list({c.group for c in contacts}) if not REMOVE_EMPTY_GROUPS else None
+    save_contacts(contacts, preserved_groups=preserved)
+
+
 def rename_group(old_name: str, new_name: str) -> None:
     contacts = load_contacts()
     for contact in contacts:

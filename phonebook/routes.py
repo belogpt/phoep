@@ -55,10 +55,7 @@ def index():
         contacts = []
     group_filter = request.args.get('group', '')
     search = request.args.get('search', '')
-    sort_mode = request.args.get('sort', '')
     filtered_contacts = _filter_contacts(contacts, group_filter, search)
-    if sort_mode == 'name':
-        filtered_contacts = sorted(filtered_contacts, key=lambda c: c.name.casefold())
     groups = repository.get_groups_with_counts()
     group_prefixes = {
         g.name: f"{g.order_index:02d}. " if g.order_index else ''
@@ -70,9 +67,20 @@ def index():
         groups=groups,
         group_filter=group_filter,
         search=search,
-        sort_mode=sort_mode,
         group_prefixes=group_prefixes,
     )
+
+
+@phonebook_bp.route('/contacts/sort', methods=['POST'])
+def sort_contacts_by_name():
+    """Сортирует контакты по ФИО и сохраняет порядок в XML."""
+
+    try:
+        repository.sort_contacts_by_name()
+        flash('Контакты отсортированы по ФИО', 'success')
+    except Exception as exc:  # noqa: BLE001
+        flash(f'Не удалось отсортировать контакты: {exc}', 'danger')
+    return redirect(url_for('phonebook.index'))
 
 
 @phonebook_bp.route('/contact/new', methods=['GET', 'POST'])

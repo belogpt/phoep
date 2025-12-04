@@ -3,7 +3,6 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h3>Контакты</h3>
     <div>
-        <a class="btn btn-primary" href="{{ url_for('phonebook.new_contact') }}">Добавить контакт</a>
         <a class="btn btn-secondary" href="{{ url_for('phonebook.manage_groups') }}">Добавить/управлять группами</a>
     </div>
 </div>
@@ -24,19 +23,17 @@
                 <input class="form-control" type="text" name="search" value="{{ search }}" placeholder="Например, 8100 или Анна">
             </div>
             <div class="col-md-4 align-self-end">
-                <input type="hidden" name="sort" value="{{ sort_mode }}">
                 <button class="btn btn-primary" type="submit">Применить</button>
                 <a class="btn btn-outline-secondary" href="{{ url_for('phonebook.index') }}">Сбросить</a>
-                <a class="btn {% if sort_mode == 'name' %}btn-success{% else %}btn-outline-success{% endif %}"
-                   href="{{ url_for('phonebook.index', group=group_filter, search=search, sort='name') }}">
-                    Сортировка по ФИО
-                </a>
             </div>
         </form>
     </div>
 </div>
 <div class="mb-3 d-flex flex-wrap gap-2">
-    <a class="btn btn-success" href="{{ url_for('phonebook.download_xml') }}">Скачать XML</a>
+    <a class="btn btn-primary" href="{{ url_for('phonebook.new_contact') }}">Добавить контакт</a>
+    <form class="d-inline" action="{{ url_for('phonebook.sort_contacts_by_name') }}" method="post">
+        <button type="submit" class="btn btn-success">Сортировка по ФИО</button>
+    </form>
     <a class="btn btn-info text-white" href="{{ url_for('phonebook.export_excel') }}">Экспорт в Excel</a>
     <a class="btn btn-outline-info" href="{{ url_for('phonebook.import_raw_upload') }}">Импорт из таблицы отделов</a>
     <form class="d-inline" action="{{ url_for('phonebook.import_excel') }}" method="post" enctype="multipart/form-data">
