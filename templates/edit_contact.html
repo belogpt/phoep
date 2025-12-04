@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% block content %}
 <h3>{% if contact %}Редактировать контакт{% else %}Новый контакт{% endif %}</h3>
-<form method="post" enctype="multipart/form-data" action="{% if contact %}{{ url_for('phonebook.edit_contact', contact_id=contact.contact_id) }}{% else %}{{ url_for('phonebook.new_contact') }}{% endif %}" class="card p-3">
+<form method="post" action="{% if contact %}{{ url_for('phonebook.edit_contact', contact_id=contact.contact_id) }}{% else %}{{ url_for('phonebook.new_contact') }}{% endif %}" class="card p-3">
     <div class="mb-3">
         <label class="form-label">Группа</label>
         <input class="form-control" list="groupOptions" name="group" value="{{ contact.group if contact else '' }}" required maxlength="99">
@@ -27,92 +27,9 @@
         <label class="form-label">Другой номер</label>
         <input class="form-control" type="text" name="other" value="{{ contact.other if contact else '' }}" maxlength="32">
     </div>
-    {% set current_photo = contact.photo if contact else '' %}
-    {% set photo_option = 'none' %}
-    {% set selected_uploaded = '' %}
-    {% if current_photo %}
-        {% if current_photo.startswith('Resource:') %}
-            {% set photo_option = 'builtin' %}
-        {% elif current_photo.startswith('/static/photos/') or current_photo.startswith('Config:photos/') %}
-            {% set photo_option = 'existing' %}
-            {% if current_photo.startswith('/static/photos/') %}
-                {% set selected_uploaded = current_photo.replace('/static/photos/', '') %}
-            {% elif current_photo.startswith('Config:photos/') %}
-                {% set selected_uploaded = current_photo.replace('Config:photos/', '') %}
-            {% endif %}
-        {% endif %}
-    {% endif %}
-
-    <div class="mb-3">
-        <label class="form-label">Картинка контакта</label>
-        {% if current_photo %}
-            <div class="mb-2">
-                <strong>Текущая:</strong>
-                {% if current_photo.startswith('Resource:') %}
-                    <span class="badge bg-secondary">{{ current_photo }}</span>
-                {% else %}
-                    <img src="{{ current_photo }}" alt="Фото контакта" class="img-thumbnail" style="max-width: 100px; max-height: 100px;">
-                {% endif %}
-            </div>
-        {% endif %}
-        <div class="form-check">
-            <input class="form-check-input" type="radio" name="photo_option" id="photoNone" value="none" {% if photo_option == 'none' %}checked{% endif %}>
-            <label class="form-check-label" for="photoNone">Без картинки</label>
-        </div>
-        <div class="form-check">
-            <input class="form-check-input" type="radio" name="photo_option" id="photoBuiltin" value="builtin" {% if photo_option == 'builtin' %}checked{% endif %}>
-            <label class="form-check-label" for="photoBuiltin">Встроенная иконка Yealink</label>
-        </div>
-        <div class="form-check">
-            <input class="form-check-input" type="radio" name="photo_option" id="photoUpload" value="upload" {% if photo_option == 'upload' %}checked{% endif %}>
-            <label class="form-check-label" for="photoUpload">Загрузить новую картинку</label>
-        </div>
-        <div class="form-check">
-            <input class="form-check-input" type="radio" name="photo_option" id="photoExisting" value="existing" {% if photo_option == 'existing' %}checked{% endif %}>
-            <label class="form-check-label" for="photoExisting">Выбрать из загруженных</label>
-        </div>
-
-        <div id="photoBuiltinBlock" class="mt-2 {% if photo_option != 'builtin' %}d-none{% endif %}">
-            <label class="form-label">Встроенная иконка</label>
-            <select class="form-select" name="builtin_photo">
-                {% for label, value in builtin_icons %}
-                    <option value="{{ value }}" {% if current_photo == value %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <div id="photoUploadBlock" class="mt-2 {% if photo_option != 'upload' %}d-none{% endif %}">
-            <label class="form-label">Загрузка файла</label>
-            <input class="form-control" type="file" name="photo_file" accept="image/*">
-            <div class="form-text">Файл будет приведён к PNG и размеру до 100x100.</div>
-        </div>
-
-        <div id="photoExistingBlock" class="mt-2 {% if photo_option != 'existing' %}d-none{% endif %}">
-            <label class="form-label">Уже загруженные</label>
-            <select class="form-select" name="existing_photo">
-                <option value="">-- Не выбрано --</option>
-                {% for filename in uploaded_photos %}
-                    <option value="{{ filename }}" {% if selected_uploaded == filename %}selected{% endif %}>{{ filename }}</option>
-                {% endfor %}
-            </select>
-            <div class="form-text">Список файлов из каталога static/photos.</div>
-        </div>
-    </div>
     <div class="d-flex gap-2">
         <button type="submit" class="btn btn-primary">Сохранить</button>
         <a class="btn btn-secondary" href="{{ url_for('phonebook.index') }}">Отмена</a>
     </div>
 </form>
-<script>
-    const toggleBlocks = () => {
-        const choice = document.querySelector('input[name="photo_option"]:checked')?.value;
-        document.getElementById('photoBuiltinBlock').classList.toggle('d-none', choice !== 'builtin');
-        document.getElementById('photoUploadBlock').classList.toggle('d-none', choice !== 'upload');
-        document.getElementById('photoExistingBlock').classList.toggle('d-none', choice !== 'existing');
-    };
-    document.querySelectorAll('input[name="photo_option"]').forEach((el) => {
-        el.addEventListener('change', toggleBlocks);
-    });
-    toggleBlocks();
-</script>
 {% endblock %}

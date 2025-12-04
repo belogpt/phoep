@@ -26,7 +26,7 @@ def export_to_excel(contacts: List[Contact]) -> bytes:
             'Office Number': contact.office,
             'Mobile Number': contact.mobile,
             'Other Number': contact.other,
-            'Head Portrait': contact.photo,
+            'Head Portrait': '',
         })
     df = pd.DataFrame(data, columns=COLUMNS)
     buffer = io.BytesIO()
@@ -58,9 +58,8 @@ def import_from_excel(file_stream) -> int:
         office = '' if pd.isna(row[columns_map['office number']]) else str(row[columns_map['office number']]).strip()
         mobile = '' if pd.isna(row[columns_map['mobile number']]) else str(row[columns_map['mobile number']]).strip()
         other = '' if pd.isna(row[columns_map['other number']]) else str(row[columns_map['other number']]).strip()
-        photo = '' if pd.isna(row[columns_map['head portrait']]) else str(row[columns_map['head portrait']]).strip()
         if not department or (not name and not office and not mobile and not other):
             continue
-        contacts.append(Contact(group=department, name=name, office=office, mobile=mobile, other=other, photo=photo))
+        contacts.append(Contact(group=department, name=name, office=office, mobile=mobile, other=other, photo=''))
     save_contacts(contacts)
     return len(contacts)
