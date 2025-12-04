@@ -55,7 +55,10 @@ def index():
         contacts = []
     group_filter = request.args.get('group', '')
     search = request.args.get('search', '')
+    sort_mode = request.args.get('sort', '')
     filtered_contacts = _filter_contacts(contacts, group_filter, search)
+    if sort_mode == 'name':
+        filtered_contacts = sorted(filtered_contacts, key=lambda c: c.name.casefold())
     groups = repository.get_groups_with_counts()
     group_prefixes = {
         g.name: f"{g.order_index:02d}. " if g.order_index else ''
@@ -67,6 +70,7 @@ def index():
         groups=groups,
         group_filter=group_filter,
         search=search,
+        sort_mode=sort_mode,
         group_prefixes=group_prefixes,
     )
 

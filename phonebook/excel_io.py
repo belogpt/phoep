@@ -190,7 +190,9 @@ def parse_raw_department_table(filepath: str) -> List[RawContact]:
 def normalize_raw_contacts(raw_contacts: List[RawContact], dept_alias_map: Dict[str, str]) -> List[Contact]:
     """Преобразует RawContact в модель Contact с использованием сокращений отделов."""
 
-    normalized: List[Contact] = []
+    grouped: Dict[str, List[Contact]] = {}
+    group_order: List[str] = []
+
     for raw in raw_contacts:
         group = dept_alias_map.get(raw.full_department_name, raw.full_department_name)
         contact = Contact(
@@ -203,5 +205,16 @@ def normalize_raw_contacts(raw_contacts: List[RawContact], dept_alias_map: Dict[
         )
         if not any(num.strip() for num in [contact.office, contact.mobile, contact.other]):
             continue
-        normalized.append(contact)
-    return normalized
+
+        if group not in grouped:
+            grouped[group] = []
+            group_order.append(group)
+        grouped[group].append(contact)
+
+    ordered: List[Contact] = []
+    for group in group_order:
+        contacts = grouped[group]
+        contacts.sort(key=lambda c: c.name.casefold())
+        ordered.extend(contacts)
+
+    return ordered
