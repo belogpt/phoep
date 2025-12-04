@@ -15,7 +15,7 @@
                 <select class="form-select" name="group">
                     <option value="">Все</option>
                     {% for g in groups %}
-                        <option value="{{ g.name }}" {% if group_filter == g.name %}selected{% endif %}>{{ g.name }} ({{ g.contact_count }})</option>
+                        <option value="{{ g.name }}" {% if group_filter == g.name %}selected{% endif %}>{{ group_prefixes.get(g.name, '') }}{{ g.name }} ({{ g.contact_count }})</option>
                     {% endfor %}
                 </select>
             </div>
@@ -45,6 +45,7 @@
     <table class="table table-striped">
         <thead>
             <tr>
+                <th style="width: 60px;">№</th>
                 <th>Группа</th>
                 <th>Имя</th>
                 <th>Рабочий</th>
@@ -57,7 +58,8 @@
             {% if contacts %}
                 {% for contact in contacts %}
                     <tr>
-                        <td>{{ contact.group }}</td>
+                        <td class="text-center">{{ loop.index }}</td>
+                        <td>{{ group_prefixes.get(contact.group, '') }}{{ contact.group }}</td>
                         <td>{{ contact.name }}</td>
                         <td>{{ contact.office }}</td>
                         <td>{{ contact.mobile }}</td>
@@ -71,7 +73,7 @@
                     </tr>
                 {% endfor %}
             {% else %}
-                <tr><td colspan="6" class="text-center">Нет контактов</td></tr>
+                <tr><td colspan="7" class="text-center">Нет контактов</td></tr>
             {% endif %}
         </tbody>
     </table>

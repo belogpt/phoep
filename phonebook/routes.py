@@ -57,12 +57,17 @@ def index():
     search = request.args.get('search', '')
     filtered_contacts = _filter_contacts(contacts, group_filter, search)
     groups = repository.get_groups_with_counts()
+    group_prefixes = {
+        g.name: f"{g.order_index:02d}. " if g.order_index else ''
+        for g in groups
+    }
     return render_template(
         'index.html',
         contacts=filtered_contacts,
         groups=groups,
         group_filter=group_filter,
         search=search,
+        group_prefixes=group_prefixes,
     )
 
 
@@ -190,11 +195,13 @@ def _load_raw_contacts_from_session():
 
 def _render_raw_preview(raw_contacts, alias_map):
     normalized = normalize_raw_contacts(raw_contacts, alias_map)
+    missing_numbers = sum(1 for raw in raw_contacts if not raw.internal_extension)
     return render_template(
         'import_raw_preview.html',
         contacts=normalized,
         raw_contacts=raw_contacts,
         alias_map=alias_map,
+        missing_numbers=missing_numbers,
     )
 
 
