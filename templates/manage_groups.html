@@ -1,45 +1,103 @@
 {% extends 'base.html' %}
 {% block content %}
 <h3>Управление группами</h3>
-<div class="table-responsive">
-    <table class="table table-bordered">
-        <thead>
-            <tr>
-                <th>Группа</th>
-                <th>Количество контактов</th>
-                <th>Действия</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for group in groups %}
-            <tr>
-                <td>{{ group.name }}</td>
-                <td>{{ group.contact_count }}</td>
-                <td>
-                    <form class="d-inline" method="post" action="{{ url_for('phonebook.rename_group') }}">
-                        <input type="hidden" name="old_name" value="{{ group.name }}">
-                        <div class="input-group input-group-sm">
-                            <input class="form-control" type="text" name="new_name" placeholder="Новое имя" required maxlength="99">
-                            <button class="btn btn-outline-primary" type="submit">Переименовать</button>
-                        </div>
-                    </form>
-                    <form class="d-inline" method="post" action="{{ url_for('phonebook.remove_group') }}" onsubmit="return confirmGroupDelete();">
-                        <input type="hidden" name="group_name" value="{{ group.name }}">
-                        <div class="input-group input-group-sm mt-1">
-                            <select class="form-select" name="mode">
-                                <option value="keep">Не удалять, если есть контакты</option>
-                                <option value="delete_contacts">Удалить вместе с контактами</option>
-                            </select>
-                            <button class="btn btn-outline-danger" type="submit">Удалить</button>
-                        </div>
-                    </form>
-                </td>
-            </tr>
-            {% else %}
-                <tr><td colspan="3" class="text-center">Группы не найдены</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
-<a class="btn btn-secondary" href="{{ url_for('phonebook.index') }}">Назад</a>
+<p class="text-muted">Перетащите строки, чтобы изменить порядок, и нажмите «Сохранить порядок».</p>
+<form id="reorder-form" method="post" action="{{ url_for('phonebook.reorder_groups') }}">
+    <input type="hidden" name="order" id="order-input">
+    <div class="table-responsive">
+        <table class="table table-bordered" id="groups-table">
+            <thead>
+                <tr>
+                    <th style="width: 70px;">Порядок</th>
+                    <th>Группа</th>
+                    <th>Количество контактов</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody id="groups-body">
+                {% for group in groups %}
+                <tr draggable="true" data-group="{{ group.name }}">
+                    <td class="text-center align-middle drag-handle">{{ loop.index }}</td>
+                    <td class="align-middle">{{ group.name }}</td>
+                    <td class="align-middle">{{ group.contact_count }}</td>
+                    <td>
+                        <form class="d-inline" method="post" action="{{ url_for('phonebook.rename_group') }}">
+                            <input type="hidden" name="old_name" value="{{ group.name }}">
+                            <div class="input-group input-group-sm">
+                                <input class="form-control" type="text" name="new_name" placeholder="Новое имя" required maxlength="99">
+                                <button class="btn btn-outline-primary" type="submit">Переименовать</button>
+                            </div>
+                        </form>
+                        <form class="d-inline" method="post" action="{{ url_for('phonebook.remove_group') }}" onsubmit="return confirmGroupDelete();">
+                            <input type="hidden" name="group_name" value="{{ group.name }}">
+                            <div class="input-group input-group-sm mt-1">
+                                <select class="form-select" name="mode">
+                                    <option value="keep">Не удалять, если есть контакты</option>
+                                    <option value="delete_contacts">Удалить вместе с контактами</option>
+                                </select>
+                                <button class="btn btn-outline-danger" type="submit">Удалить</button>
+                            </div>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                    <tr><td colspan="4" class="text-center">Группы не найдены</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">Сохранить порядок</button>
+        <a class="btn btn-secondary" href="{{ url_for('phonebook.index') }}">Назад</a>
+    </div>
+</form>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const tbody = document.getElementById('groups-body');
+    const orderInput = document.getElementById('order-input');
+    let draggedRow = null;
+
+    function updateOrderNumbers() {
+        Array.from(tbody.querySelectorAll('tr')).forEach((row, idx) => {
+            const cell = row.querySelector('.drag-handle');
+            if (cell) {
+                cell.textContent = String(idx + 1).padStart(2, '0');
+            }
+        });
+    }
+
+    tbody.addEventListener('dragstart', (event) => {
+        draggedRow = event.target.closest('tr');
+        event.dataTransfer.effectAllowed = 'move';
+    });
+
+    tbody.addEventListener('dragover', (event) => {
+        event.preventDefault();
+        const targetRow = event.target.closest('tr');
+        if (!draggedRow || !targetRow || draggedRow === targetRow) {
+            return;
+        }
+        const bounding = targetRow.getBoundingClientRect();
+        const offset = bounding.y + bounding.height / 2;
+        if (event.clientY - offset > 0) {
+            targetRow.after(draggedRow);
+        } else {
+            targetRow.before(draggedRow);
+        }
+        updateOrderNumbers();
+    });
+
+    tbody.addEventListener('dragend', () => {
+        draggedRow = null;
+    });
+
+    document.getElementById('reorder-form').addEventListener('submit', (event) => {
+        const order = Array.from(tbody.querySelectorAll('tr')).map(row => row.dataset.group);
+        orderInput.value = JSON.stringify(order);
+    });
+
+    updateOrderNumbers();
+});
+</script>
 {% endblock %}
