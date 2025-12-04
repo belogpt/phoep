@@ -24,8 +24,13 @@
                 <input class="form-control" type="text" name="search" value="{{ search }}" placeholder="Например, 8100 или Анна">
             </div>
             <div class="col-md-4 align-self-end">
+                <input type="hidden" name="sort" value="{{ sort_mode }}">
                 <button class="btn btn-primary" type="submit">Применить</button>
                 <a class="btn btn-outline-secondary" href="{{ url_for('phonebook.index') }}">Сбросить</a>
+                <a class="btn {% if sort_mode == 'name' %}btn-success{% else %}btn-outline-success{% endif %}"
+                   href="{{ url_for('phonebook.index', group=group_filter, search=search, sort='name') }}">
+                    Сортировка по ФИО
+                </a>
             </div>
         </form>
     </div>
