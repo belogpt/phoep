@@ -10,14 +10,26 @@ from flask import (
     flash,
     send_file,
     abort,
+    session,
 )
 from io import BytesIO
 
 from .models import Contact
 from . import repository
-from .excel_io import export_to_excel, import_from_excel
+from .excel_io import (
+    export_to_excel,
+    import_from_excel,
+    normalize_raw_contacts,
+    parse_raw_department_table,
+)
+from .departments_registry import (
+    load_department_aliases,
+    save_department_aliases,
+    suggest_alias,
+)
 
 phonebook_bp = Blueprint('phonebook', __name__)
+RAW_UPLOAD_SESSION_KEY = 'raw_import_file'
 
 
 def _filter_contacts(contacts, group_filter, search):
@@ -138,6 +150,36 @@ def download_xml():
     )
 
 
+def _save_raw_upload(file) -> str:
+    remote_dir, _ = repository.get_paths()
+    raw_dir = os.path.join(remote_dir, 'raw_uploads')
+    os.makedirs(raw_dir, exist_ok=True)
+    filename = f"raw_import_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    path = os.path.join(raw_dir, filename)
+    file.save(path)
+    session[RAW_UPLOAD_SESSION_KEY] = path
+    return path
+
+
+def _load_raw_contacts_from_session():
+    path = session.get(RAW_UPLOAD_SESSION_KEY)
+    if not path or not os.path.exists(path):
+        return None, None
+    raw_contacts = parse_raw_department_table(path)
+    aliases = load_department_aliases()
+    return raw_contacts, aliases
+
+
+def _render_raw_preview(raw_contacts, alias_map):
+    normalized = normalize_raw_contacts(raw_contacts, alias_map)
+    return render_template(
+        'import_raw_preview.html',
+        contacts=normalized,
+        raw_contacts=raw_contacts,
+        alias_map=alias_map,
+    )
+
+
 @phonebook_bp.route('/export/excel')
 def export_excel():
     contacts = repository.load_contacts()
@@ -159,6 +201,77 @@ def import_excel():
     except Exception as exc:  # noqa: BLE001
         flash(f'Ошибка импорта: {exc}', 'danger')
         return redirect(url_for('phonebook.index'))
+
+
+@phonebook_bp.route('/import/raw', methods=['GET', 'POST'])
+def import_raw_upload():
+    if request.method == 'GET':
+        return render_template('import_raw_upload.html')
+
+    file = request.files.get('raw_excel')
+    if not file:
+        flash('Не выбран файл для импорта', 'danger')
+        return redirect(url_for('phonebook.import_raw_upload'))
+
+    try:
+        path = _save_raw_upload(file)
+        raw_contacts = parse_raw_department_table(path)
+    except Exception as exc:  # noqa: BLE001
+        flash(f'Ошибка разбора файла: {exc}', 'danger')
+        return redirect(url_for('phonebook.import_raw_upload'))
+
+    if not raw_contacts:
+        flash('В файле не найдено сотрудников', 'warning')
+        return redirect(url_for('phonebook.import_raw_upload'))
+
+    departments = sorted({c.full_department_name for c in raw_contacts})
+    aliases = load_department_aliases()
+    new_departments = [d for d in departments if d not in aliases]
+
+    if new_departments:
+        suggestions = {d: suggest_alias(d) for d in new_departments}
+        return render_template(
+            'import_raw_departments.html',
+            new_departments=new_departments,
+            suggestions=suggestions,
+        )
+
+    return _render_raw_preview(raw_contacts, aliases)
+
+
+@phonebook_bp.route('/import/raw/departments', methods=['POST'])
+def import_raw_departments():
+    raw_contacts, aliases = _load_raw_contacts_from_session()
+    if raw_contacts is None:
+        flash('Файл загрузки не найден. Пожалуйста, начните импорт заново.', 'danger')
+        return redirect(url_for('phonebook.import_raw_upload'))
+
+    names = request.form.getlist('department_names')
+    values = request.form.getlist('aliases')
+    for dept, alias in zip(names, values):
+        cleaned = alias.strip()
+        aliases[dept] = cleaned or suggest_alias(dept)
+
+    save_department_aliases(aliases)
+    aliases = load_department_aliases()
+    return _render_raw_preview(raw_contacts, aliases)
+
+
+@phonebook_bp.route('/import/raw/confirm', methods=['POST'])
+def import_raw_confirm():
+    raw_contacts, aliases = _load_raw_contacts_from_session()
+    if raw_contacts is None:
+        flash('Файл загрузки не найден. Пожалуйста, начните импорт заново.', 'danger')
+        return redirect(url_for('phonebook.import_raw_upload'))
+
+    try:
+        normalized = normalize_raw_contacts(raw_contacts, aliases)
+        repository.save_contacts(normalized)
+        session.pop(RAW_UPLOAD_SESSION_KEY, None)
+        return render_template('import_result.html', count=len(normalized))
+    except Exception as exc:  # noqa: BLE001
+        flash(f'Ошибка импорта: {exc}', 'danger')
+        return redirect(url_for('phonebook.import_raw_upload'))
 
 
 def _save_contact(contact_id=None):

@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% block content %}
+<h3 class="mb-3">Сокращения отделов</h3>
+<p>Введите короткие названия для новых отделов. Они будут сохранены и использованы при импорте.</p>
+<form action="{{ url_for('phonebook.import_raw_departments') }}" method="post" class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped align-middle">
+                <thead>
+                    <tr>
+                        <th>Полное название отдела</th>
+                        <th>Сокращение</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for dept in new_departments %}
+                        <tr>
+                            <td>{{ dept }}</td>
+                            <td>
+                                <input type="hidden" name="department_names" value="{{ dept }}">
+                                <input type="text" class="form-control" name="aliases" value="{{ suggestions[dept] }}" required>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">Сохранить и продолжить</button>
+            <a href="{{ url_for('phonebook.import_raw_upload') }}" class="btn btn-outline-secondary">Назад</a>
+        </div>
+    </div>
+</form>
+{% endblock %}

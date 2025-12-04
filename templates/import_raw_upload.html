@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block content %}
+<h3 class="mb-3">Импорт из таблицы отделов</h3>
+<p>Загрузите Excel-файл, где строки отделов выделены цветом или указаны отдельной строкой, а под ними перечислены сотрудники.</p>
+<form action="{{ url_for('phonebook.import_raw_upload') }}" method="post" enctype="multipart/form-data" class="card">
+    <div class="card-body">
+        <div class="mb-3">
+            <label class="form-label">Excel-файл</label>
+            <input type="file" class="form-control" name="raw_excel" accept=".xls,.xlsx" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Загрузить</button>
+        <a href="{{ url_for('phonebook.index') }}" class="btn btn-outline-secondary">Отмена</a>
+    </div>
+</form>
+{% endblock %}
