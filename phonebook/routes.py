@@ -221,7 +221,10 @@ def import_raw_upload():
         return redirect(url_for('phonebook.import_raw_upload'))
 
     if not raw_contacts:
-        flash('В файле не найдено сотрудников', 'warning')
+        flash(
+            'В файле не найдено ни одного контакта. Убедитесь, что таблица соответствует шаблону (строки отделов в колонке B, под ними строки с номерами 1,2,3 и ФИО в колонке D).',
+            'warning',
+        )
         return redirect(url_for('phonebook.import_raw_upload'))
 
     departments = sorted({c.full_department_name for c in raw_contacts})

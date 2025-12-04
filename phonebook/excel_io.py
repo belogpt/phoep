@@ -75,38 +75,50 @@ class RawContact:
 
     full_department_name: str
     full_name: str
-    raw_row_data: List[str] = field(default_factory=list)
+    raw_row_data: Dict[str, str] = field(default_factory=dict)
     internal_extension: Optional[str] = None
 
 
-def _is_department_row(row) -> bool:
-    """Пытается определить, является ли строка строкой отдела по цвету/заполненности."""
+def _is_department_cell(cell) -> bool:
+    """Определяет, что ячейка B относится к строке с названием отдела."""
 
-    for cell in row:
-        fill = getattr(cell, "fill", None)
-        if fill and fill.fill_type and getattr(fill.start_color, "rgb", None):
-            color = fill.start_color.rgb
-            if color and color not in {"00000000", "FFFFFFFF", "FF000000"}:
-                return True
+    value = cell.value
+    if not isinstance(value, str) or not value.strip():
+        return False
 
-    first_value = row[0].value if row else None
-    other_values = [c.value for c in row[1:]] if len(row) > 1 else []
-    if first_value and all(v in (None, "") for v in other_values):
+    fill = getattr(cell, "fill", None)
+    if fill and getattr(fill, "patternType", None) == "solid":
+        fg_color = getattr(fill, "fgColor", None)
+        if fg_color and getattr(fg_color, "type", None) in {"theme", "rgb"}:
+            return True
+
+    if not re.search(r"\d", value):
         return True
+
     return False
 
 
-def _extract_internal_extension(values: List[str]) -> Optional[str]:
-    """Ищет первый короткий номер (3–5 цифр) в наборе значений строки."""
+def extract_internal_extension_from_row(
+    phone_internal_raw: str, row_values: List[str]
+) -> Optional[str]:
+    """Извлекает внутренний номер (3–5 цифр) из строки сотрудника."""
 
-    for raw in values:
-        if raw is None:
+    def _cleanup_digits(text: str) -> str:
+        return re.sub(r"\D", "", text)
+
+    if phone_internal_raw:
+        digits = _cleanup_digits(str(phone_internal_raw))
+        if digits.isdigit() and 3 <= len(digits) <= 5:
+            return digits
+
+    for value in row_values:
+        if not value:
             continue
-        text = str(raw)
-        for match in re.findall(r"[\d\s\+\-\(\)]+", text):
-            digits = re.sub(r"[\s\-\+\(\)]", "", match)
+        for match in re.findall(r"[\d\s\+\-\(\)]+", value):
+            digits = _cleanup_digits(match)
             if digits.isdigit() and 3 <= len(digits) <= 5:
                 return digits
+
     return None
 
 
@@ -118,30 +130,57 @@ def parse_raw_department_table(filepath: str) -> List[RawContact]:
 
     wb = load_workbook(filepath)
     ws = wb.active
-    current_department: Optional[str] = None
+    current_department_full_name: Optional[str] = None
     raw_contacts: List[RawContact] = []
 
-    for row in ws.iter_rows():
-        values = [cell.value for cell in row]
-        if any(values):
-            if _is_department_row(row):
-                current_department = str(values[0]).strip()
+    for row_idx in range(8, ws.max_row + 1):
+        if ws.cell(row=row_idx, column=4).value == "Справочно:":
+            break
+
+        cell_b = ws.cell(row=row_idx, column=2)
+        val_b = cell_b.value
+
+        if _is_department_cell(cell_b):
+            current_department_full_name = str(val_b).strip()
+            continue
+
+        if isinstance(val_b, (int, float)) and current_department_full_name:
+            full_name = str(ws.cell(row=row_idx, column=4).value or "").strip()
+            position = str(ws.cell(row=row_idx, column=5).value or "").strip()
+            phone_external = str(ws.cell(row=row_idx, column=6).value or "").strip()
+            phone_internal_raw = str(ws.cell(row=row_idx, column=7).value or "").strip()
+            email = str(ws.cell(row=row_idx, column=8).value or "").strip()
+
+            if not full_name:
                 continue
 
-            full_name = str(values[0]).strip() if values and values[0] else ""
-            if not full_name or not current_department:
-                continue
+            row_values = [
+                str(ws.cell(row=row_idx, column=col).value or "")
+                for col in range(4, 9)
+            ]
+            internal_extension = extract_internal_extension_from_row(
+                phone_internal_raw, row_values
+            )
 
-            normalized_values = ["" if v is None else str(v) for v in values]
-            internal_extension = _extract_internal_extension(normalized_values)
             raw_contacts.append(
                 RawContact(
-                    full_department_name=current_department,
+                    full_department_name=current_department_full_name,
                     full_name=full_name,
-                    raw_row_data=normalized_values,
+                    raw_row_data={
+                        "position": position,
+                        "phone_external": phone_external,
+                        "phone_internal_raw": phone_internal_raw,
+                        "email": email,
+                        "row_index": row_idx,
+                    },
                     internal_extension=internal_extension,
                 )
             )
+
+    if not raw_contacts:
+        raise ValueError(
+            "Не удалось распознать ни одного контакта. Проверьте формат файла."
+        )
 
     return raw_contacts
 
