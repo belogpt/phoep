@@ -152,6 +152,12 @@ requirements.txt
    ```
    `docker-compose.yml` монтирует `/var/www/html` в `/app/data` и пробрасывает порт `5000:5000`. Путь можно поменять в файле compose, если веб-каталог отличается.
 
+   Чтобы сразу передать новый пароль администратора при пересборке, задайте переменные окружения перед командой (формат подходит для `docker compose up -d --build`):
+   ```bash
+   BASIC_AUTH_USERNAME=admin BASIC_AUTH_PASSWORD=<новый_пароль> docker compose up -d --build
+   ```
+   При этом логин и пароль уйдут внутрь контейнера как переменные, значение по умолчанию `admin/admin` будет перезаписано.
+
 ## Работа с Yealink
 - В настройках телефона Yealink: Directory → Remote Phone Book.
 - URL телефонной книги со стороны телефонов: `http://<ip_сервера>/rem.xml` (веб-сервер отдаёт файл из каталога `/var/www/html`).
