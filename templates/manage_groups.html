@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% block content %}
+<h3>Управление группами</h3>
+<div class="table-responsive">
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Группа</th>
+                <th>Количество контактов</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for group in groups %}
+            <tr>
+                <td>{{ group.name }}</td>
+                <td>{{ group.contact_count }}</td>
+                <td>
+                    <form class="d-inline" method="post" action="{{ url_for('phonebook.rename_group') }}">
+                        <input type="hidden" name="old_name" value="{{ group.name }}">
+                        <div class="input-group input-group-sm">
+                            <input class="form-control" type="text" name="new_name" placeholder="Новое имя" required maxlength="99">
+                            <button class="btn btn-outline-primary" type="submit">Переименовать</button>
+                        </div>
+                    </form>
+                    <form class="d-inline" method="post" action="{{ url_for('phonebook.remove_group') }}" onsubmit="return confirmGroupDelete();">
+                        <input type="hidden" name="group_name" value="{{ group.name }}">
+                        <div class="input-group input-group-sm mt-1">
+                            <select class="form-select" name="mode">
+                                <option value="keep">Не удалять, если есть контакты</option>
+                                <option value="delete_contacts">Удалить вместе с контактами</option>
+                            </select>
+                            <button class="btn btn-outline-danger" type="submit">Удалить</button>
+                        </div>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+                <tr><td colspan="3" class="text-center">Группы не найдены</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+<a class="btn btn-secondary" href="{{ url_for('phonebook.index') }}">Назад</a>
+{% endblock %}
