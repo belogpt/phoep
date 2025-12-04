@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% block content %}
 <h3 class="mb-3">Сокращения отделов</h3>
-<p>Введите короткие названия для новых отделов. Они будут сохранены и использованы при импорте.</p>
+<p>Проверьте и при необходимости исправьте сокращённые названия отделов. Они будут сохранены и использованы при импорте.</p>
 <form action="{{ url_for('phonebook.import_raw_departments') }}" method="post" class="card">
     <div class="card-body">
         <div class="table-responsive">
@@ -13,7 +13,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for dept in new_departments %}
+                    {% for dept in departments %}
                         <tr>
                             <td>{{ dept }}</td>
                             <td>

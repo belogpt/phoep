@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% block content %}
+<h3 class="mb-3">Сохранённые названия отделов</h3>
+<p class="text-muted">Измените сокращения при необходимости и сохраните изменения.</p>
+<form action="{{ url_for('phonebook.manage_department_aliases') }}" method="post" class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped align-middle">
+                <thead>
+                    <tr>
+                        <th>Полное название отдела</th>
+                        <th>Сокращённое название</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for full, alias in aliases %}
+                        <tr>
+                            <td>{{ full }}</td>
+                            <td>
+                                <input type="hidden" name="department_names" value="{{ full }}">
+                                <input type="text" class="form-control" name="aliases" value="{{ alias }}" required>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="2" class="text-center text-muted">Пока нет сохранённых сокращений</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">Сохранить</button>
+            <a class="btn btn-secondary" href="{{ url_for('phonebook.index') }}">Назад</a>
+        </div>
+    </div>
+</form>
+{% endblock %}

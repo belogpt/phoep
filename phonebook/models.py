@@ -20,3 +20,4 @@ class Group:
     """Группа (подразделение) телефонной книги."""
     name: str
     contact_count: int = 0
+    order_index: int = 0

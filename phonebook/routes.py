@@ -1,4 +1,5 @@
 """Маршруты Flask для работы с телефонной книгой, группами и настройками."""
+import json
 import os
 from datetime import datetime
 from flask import (
@@ -107,6 +108,23 @@ def delete_contact(contact_id: int):
 def manage_groups():
     groups = repository.get_groups_with_counts()
     return render_template('manage_groups.html', groups=groups)
+
+
+@phonebook_bp.route('/groups/reorder', methods=['POST'])
+def reorder_groups():
+    payload = request.get_json(silent=True)
+    if payload and isinstance(payload.get('order'), list):
+        order = [str(item) for item in payload['order']]
+    else:
+        raw_order = request.form.get('order', '[]')
+        try:
+            parsed = json.loads(raw_order)
+            order = parsed if isinstance(parsed, list) else []
+        except json.JSONDecodeError:
+            order = [name for name in raw_order.split(',') if name]
+    repository.update_group_order(order)
+    flash('Порядок групп обновлён', 'success')
+    return redirect(url_for('phonebook.manage_groups'))
 
 
 @phonebook_bp.route('/groups/rename', methods=['POST'])
@@ -229,17 +247,12 @@ def import_raw_upload():
 
     departments = sorted({c.full_department_name for c in raw_contacts})
     aliases = load_department_aliases()
-    new_departments = [d for d in departments if d not in aliases]
-
-    if new_departments:
-        suggestions = {d: suggest_alias(d) for d in new_departments}
-        return render_template(
-            'import_raw_departments.html',
-            new_departments=new_departments,
-            suggestions=suggestions,
-        )
-
-    return _render_raw_preview(raw_contacts, aliases)
+    suggestions = {d: aliases.get(d, suggest_alias(d)) for d in departments}
+    return render_template(
+        'import_raw_departments.html',
+        departments=departments,
+        suggestions=suggestions,
+    )
 
 
 @phonebook_bp.route('/import/raw/departments', methods=['POST'])
@@ -251,11 +264,15 @@ def import_raw_departments():
 
     names = request.form.getlist('department_names')
     values = request.form.getlist('aliases')
+    new_aliases = dict(aliases)
     for dept, alias in zip(names, values):
+        dept_name = dept.strip()
+        if not dept_name:
+            continue
         cleaned = alias.strip()
-        aliases[dept] = cleaned or suggest_alias(dept)
+        new_aliases[dept_name] = cleaned or suggest_alias(dept_name)
 
-    save_department_aliases(aliases)
+    save_department_aliases(new_aliases)
     aliases = load_department_aliases()
     return _render_raw_preview(raw_contacts, aliases)
 
@@ -275,6 +292,26 @@ def import_raw_confirm():
     except Exception as exc:  # noqa: BLE001
         flash(f'Ошибка импорта: {exc}', 'danger')
         return redirect(url_for('phonebook.import_raw_upload'))
+
+
+@phonebook_bp.route('/departments/aliases', methods=['GET', 'POST'])
+def manage_department_aliases():
+    current_aliases = load_department_aliases()
+    if request.method == 'POST':
+        names = request.form.getlist('department_names')
+        values = request.form.getlist('aliases')
+        updated: dict[str, str] = {}
+        for full, alias in zip(names, values):
+            clean_name = full.strip()
+            if not clean_name:
+                continue
+            updated[clean_name] = alias.strip() or suggest_alias(clean_name)
+        save_department_aliases(updated)
+        flash('Сокращения отделов сохранены', 'success')
+        return redirect(url_for('phonebook.manage_department_aliases'))
+
+    items = sorted(current_aliases.items())
+    return render_template('departments_aliases.html', aliases=items)
 
 
 def _save_contact(contact_id=None):

@@ -62,7 +62,9 @@ def import_from_excel(file_stream) -> int:
         office = '' if pd.isna(row[columns_map['office number']]) else str(row[columns_map['office number']]).strip()
         mobile = '' if pd.isna(row[columns_map['mobile number']]) else str(row[columns_map['mobile number']]).strip()
         other = '' if pd.isna(row[columns_map['other number']]) else str(row[columns_map['other number']]).strip()
-        if not department or (not name and not office and not mobile and not other):
+        if not department:
+            continue
+        if not any(num.strip() for num in [office, mobile, other]):
             continue
         contacts.append(Contact(group=department, name=name, office=office, mobile=mobile, other=other, photo=''))
     save_contacts(contacts)
@@ -191,14 +193,15 @@ def normalize_raw_contacts(raw_contacts: List[RawContact], dept_alias_map: Dict[
     normalized: List[Contact] = []
     for raw in raw_contacts:
         group = dept_alias_map.get(raw.full_department_name, raw.full_department_name)
-        normalized.append(
-            Contact(
-                group=group,
-                name=raw.full_name,
-                office=raw.internal_extension or "",
-                mobile="",
-                other="",
-                photo="",
-            )
+        contact = Contact(
+            group=group,
+            name=raw.full_name,
+            office=raw.internal_extension or "",
+            mobile="",
+            other="",
+            photo="",
         )
+        if not any(num.strip() for num in [contact.office, contact.mobile, contact.other]):
+            continue
+        normalized.append(contact)
     return normalized

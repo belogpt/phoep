@@ -1,8 +1,10 @@
 """Работа с Config.cfg и XML-файлом телефонной книги Yealink."""
-import os
 import configparser
+import json
+import os
+import re
 import xml.etree.ElementTree as ET
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 
 from .models import Contact, Group
 
@@ -13,6 +15,8 @@ MAX_GROUPS = 50
 MAX_NAME_LENGTH = 99
 MAX_PHONE_LENGTH = 32
 REMOVE_EMPTY_GROUPS = True
+GROUP_ORDER_FILENAME = 'group_order.json'
+PREFIX_PATTERN = re.compile(r"^\s*(\d{2})\.\s+(.*)$")
 
 
 def ensure_environment() -> None:
@@ -31,6 +35,55 @@ def ensure_environment() -> None:
     phonebook_path = os.path.join(remote_dir, PHONEBOOK_FILENAME)
     if not os.path.exists(phonebook_path):
         _write_empty_phonebook(phonebook_path)
+
+
+def _get_group_order_path() -> str:
+    remote_dir, _ = get_paths()
+    os.makedirs(remote_dir, exist_ok=True)
+    return os.path.join(remote_dir, GROUP_ORDER_FILENAME)
+
+
+def load_group_order() -> Dict[str, int]:
+    """Загружает порядок групп из JSON."""
+
+    path = _get_group_order_path()
+    if not os.path.exists(path):
+        return {}
+    with open(path, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    return {k: int(v) for k, v in data.items()}
+
+
+def save_group_order(order_map: Dict[str, int]) -> None:
+    """Сохраняет порядок групп в JSON."""
+
+    path = _get_group_order_path()
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(order_map, f, ensure_ascii=False, indent=2)
+
+
+def _split_prefixed_group(name: str) -> tuple[str, int | None]:
+    match = PREFIX_PATTERN.match(name)
+    if match:
+        return match.group(2).strip(), int(match.group(1))
+    return name, None
+
+
+def _normalize_order_map(order_map: Dict[str, int], group_names: List[str]) -> Dict[str, int]:
+    ordered_pairs = []
+    for name in group_names:
+        if name in order_map and isinstance(order_map[name], int):
+            ordered_pairs.append((name, order_map[name]))
+
+    ordered_pairs.sort(key=lambda x: (x[1], x[0]))
+    max_value = max((val for _, val in ordered_pairs), default=0)
+    missing = [name for name in group_names if name not in order_map]
+    for name in sorted(missing):
+        max_value += 1
+        ordered_pairs.append((name, max_value))
+
+    ordered_pairs.sort(key=lambda x: x[1])
+    return {name: idx for idx, (name, _) in enumerate(ordered_pairs, start=1)}
 
 
 def _write_empty_phonebook(path: str) -> None:
@@ -83,9 +136,12 @@ def load_contacts() -> List[Contact]:
     tree = ET.parse(phonebook_path)
     root = tree.getroot()
     contacts: List[Contact] = []
+    derived_order: Dict[str, int] = {}
     cid = 0
-    for menu in root.findall('Menu'):
-        group_name = menu.get('Name', '')
+    for position, menu in enumerate(root.findall('Menu'), start=1):
+        raw_group_name = menu.get('Name', '')
+        group_name, prefixed_order = _split_prefixed_group(raw_group_name)
+        derived_order.setdefault(group_name, prefixed_order or position)
         for unit in menu.findall('Unit'):
             contact = Contact(
                 group=group_name,
@@ -98,6 +154,16 @@ def load_contacts() -> List[Contact]:
             )
             contacts.append(contact)
             cid += 1
+    existing_order = load_group_order()
+    if not existing_order:
+        normalized = _normalize_order_map(derived_order, list(derived_order.keys())) if derived_order else {}
+        if normalized:
+            save_group_order(normalized)
+    else:
+        missing = [name for name in derived_order if name not in existing_order]
+        if missing:
+            merged = {**existing_order, **{name: derived_order[name] for name in missing}}
+            save_group_order(_normalize_order_map(merged, list(merged.keys())))
     return contacts
 
 
@@ -139,10 +205,17 @@ def save_contacts(contacts: List[Contact], preserved_groups: List[str] | None = 
                 groups[g] = []
 
     _, phonebook_path = get_paths()
+    group_names = list(groups.keys())
+    order_map = _normalize_order_map(load_group_order(), group_names)
+    if order_map:
+        save_group_order(order_map)
+    ordered_names = sorted(group_names, key=lambda n: (order_map.get(n, 10**6), n))
     root = ET.Element('YealinkIPPhoneBook')
-    for group_name, group_contacts in groups.items():
+    for idx, group_name in enumerate(ordered_names, start=1):
+        group_contacts = groups[group_name]
         menu = ET.SubElement(root, 'Menu')
-        menu.set('Name', group_name)
+        prefix = f"{idx:02d}. "
+        menu.set('Name', f"{prefix}{group_name}")
         for contact in group_contacts:
             unit = ET.SubElement(menu, 'Unit')
             unit.set('Name', contact.name)
@@ -160,7 +233,14 @@ def get_groups_with_counts() -> List[Group]:
     counts = {}
     for contact in contacts:
         counts[contact.group] = counts.get(contact.group, 0) + 1
-    return [Group(name=k, contact_count=v) for k, v in sorted(counts.items())]
+    order_map = _normalize_order_map(load_group_order(), list(counts.keys())) if counts else {}
+    if order_map:
+        save_group_order(order_map)
+    groups = [
+        Group(name=k, contact_count=v, order_index=order_map.get(k, 0))
+        for k, v in counts.items()
+    ]
+    return sorted(groups, key=lambda g: (g.order_index or 10**6, g.name))
 
 
 def update_contact(contact_id: int, updated: Contact) -> None:
@@ -192,6 +272,11 @@ def rename_group(old_name: str, new_name: str) -> None:
     for contact in contacts:
         if contact.group == old_name:
             contact.group = new_name
+    order_map = load_group_order()
+    if old_name in order_map:
+        order_map[new_name] = order_map.pop(old_name)
+        order_map = _normalize_order_map(order_map, list(order_map.keys()))
+        save_group_order(order_map)
     save_contacts(contacts)
 
 
@@ -203,4 +288,35 @@ def delete_group(group_name: str, with_contacts: bool) -> None:
         for c in contacts:
             if c.group == group_name:
                 raise ValueError('Нельзя удалить группу с контактами без подтверждения')
+    order_map = load_group_order()
+    if group_name in order_map:
+        order_map.pop(group_name, None)
+    remaining_groups = list({c.group for c in contacts})
+    if order_map:
+        order_map = _normalize_order_map(order_map, remaining_groups)
+        save_group_order(order_map)
     save_contacts(contacts)
+
+
+def update_group_order(new_order: List[str]) -> None:
+    """Обновляет порядок групп и перезаписывает XML."""
+
+    seen = set()
+    cleaned_order = []
+    for name in new_order:
+        stripped = name.strip()
+        if stripped and stripped not in seen:
+            cleaned_order.append(stripped)
+            seen.add(stripped)
+
+    current_contacts = load_contacts()
+    existing_groups = list({c.group for c in current_contacts})
+    for g in existing_groups:
+        if g not in seen:
+            cleaned_order.append(g)
+
+    if cleaned_order:
+        order_map = {name: idx for idx, name in enumerate(cleaned_order, start=1)}
+        order_map = _normalize_order_map(order_map, cleaned_order)
+        save_group_order(order_map)
+        save_contacts(current_contacts, preserved_groups=existing_groups if not REMOVE_EMPTY_GROUPS else None)
