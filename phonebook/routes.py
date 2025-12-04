@@ -20,12 +20,6 @@ from .excel_io import export_to_excel, import_from_excel
 phonebook_bp = Blueprint('phonebook', __name__)
 
 
-@phonebook_bp.context_processor
-def inject_globals():
-    remote_dir, phonebook_path = repository.get_paths()
-    return {'remote_dir': remote_dir, 'phonebook_path': phonebook_path}
-
-
 def _filter_contacts(contacts, group_filter, search):
     filtered = contacts
     if group_filter:
@@ -121,20 +115,6 @@ def remove_group():
     except Exception as exc:  # noqa: BLE001
         flash(f'Ошибка удаления группы: {exc}', 'danger')
     return redirect(url_for('phonebook.manage_groups'))
-
-
-@phonebook_bp.route('/settings', methods=['GET', 'POST'])
-def settings():
-    remote_dir, _ = repository.get_paths()
-    if request.method == 'POST':
-        new_dir = request.form.get('remote_dir', '').strip()
-        if not new_dir:
-            flash('Путь не может быть пустым', 'danger')
-        else:
-            repository.save_remote_dir(new_dir)
-            flash('Путь обновлён', 'success')
-            return redirect(url_for('phonebook.settings'))
-    return render_template('settings.html', remote_dir=remote_dir)
 
 
 @phonebook_bp.route('/RemotePhonebook.xml')

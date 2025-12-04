@@ -15,9 +15,7 @@
             <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('phonebook.index') }}">Контакты</a></li>
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('phonebook.manage_groups') }}">Группы</a></li>
-                <li class="nav-item"><a class="nav-link" href="{{ url_for('phonebook.settings') }}">Настройки</a></li>
             </ul>
-            <span class="navbar-text text-light small">Файл: {{ phonebook_path }}</span>
         </div>
     </div>
 </nav>
@@ -35,6 +33,7 @@
 
     {% block content %}{% endblock %}
 </div>
+<footer class="text-center text-muted py-3 small">Белобородов Алексей, 2025</footer>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="{{ url_for('static', filename='main.js') }}"></script>
 </body>
