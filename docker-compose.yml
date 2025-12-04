@@ -12,4 +12,5 @@ services:
     volumes:
       # Замените /var/www/html на каталог веб-сервера, если он отличается
       - /var/www/html:/app/data
+      - ./static/photos:/app/static/photos
     restart: unless-stopped
