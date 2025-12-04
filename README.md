@@ -81,6 +81,25 @@ requirements.txt
 - После удаления контакта пустые группы удаляются (поведение включено по умолчанию в коде).
 
 ## Развёртывание в Docker (Linux/РЕД ОС)
+### Установка из репозитория
+1. Установите `git`, `docker` и при необходимости `docker-compose`.
+2. Клонируйте репозиторий и перейдите в каталог проекта:
+   ```bash
+   git clone https://github.com/<your-org>/phoep.git
+   cd phoep
+   ```
+3. Подготовьте каталог для данных (Config.cfg и RemotePhonebook.xml будут храниться вне контейнера):
+   ```bash
+   mkdir -p data
+   ```
+4. Соберите образ и запустите контейнер (Python уже входит в образ `python:3.11-slim`, ставить его на хосте не нужно):
+   ```bash
+   docker build -t yealink-phonebook .
+   docker run -d --name yealink-phonebook -p 5000:5000 -v $(pwd)/data:/app/data yealink-phonebook
+   ```
+   - Переменные окружения можно передать флагами `-e BASIC_AUTH_USERNAME=admin -e BASIC_AUTH_PASSWORD=admin123 -e APP_PORT=5000`.
+
+### Быстрый старт одной командой
 1. Сборка образа:
    ```bash
    docker build -t yealink-phonebook .
