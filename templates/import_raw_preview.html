@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% block content %}
+<h3 class="mb-3">Предпросмотр импорта из таблицы отделов</h3>
+<p>Проверьте, как сотрудники и отделы будут сохранены в телефонной книге.</p>
+<div class="card mb-3">
+    <div class="card-body table-responsive">
+        <table class="table table-striped align-middle">
+            <thead>
+                <tr>
+                    <th>Сокращённый отдел</th>
+                    <th>Полный отдел</th>
+                    <th>ФИО</th>
+                    <th>Внутренний номер</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for raw in raw_contacts %}
+                    <tr>
+                        <td>{{ alias_map.get(raw.full_department_name, raw.full_department_name) }}</td>
+                        <td>{{ raw.full_department_name }}</td>
+                        <td>{{ raw.full_name }}</td>
+                        <td>{{ raw.internal_extension }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+<form action="{{ url_for('phonebook.import_raw_confirm') }}" method="post" class="d-flex gap-2">
+    <button type="submit" class="btn btn-success" onclick="return confirm('Импорт заменит текущую телефонную книгу. Продолжить?')">Импортировать</button>
+    <a href="{{ url_for('phonebook.import_raw_upload') }}" class="btn btn-outline-secondary">Назад</a>
+</form>
+{% endblock %}

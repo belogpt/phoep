@@ -1,7 +1,11 @@
 """Импорт и экспорт телефонной книги в формате Excel."""
 import io
-from typing import List
+import os
+import re
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional
 import pandas as pd
+from openpyxl import load_workbook
 
 from .models import Contact
 from .repository import save_contacts
@@ -63,3 +67,99 @@ def import_from_excel(file_stream) -> int:
         contacts.append(Contact(group=department, name=name, office=office, mobile=mobile, other=other, photo=''))
     save_contacts(contacts)
     return len(contacts)
+
+
+@dataclass
+class RawContact:
+    """Контакт, полученный из «сырой» таблицы отделов."""
+
+    full_department_name: str
+    full_name: str
+    raw_row_data: List[str] = field(default_factory=list)
+    internal_extension: Optional[str] = None
+
+
+def _is_department_row(row) -> bool:
+    """Пытается определить, является ли строка строкой отдела по цвету/заполненности."""
+
+    for cell in row:
+        fill = getattr(cell, "fill", None)
+        if fill and fill.fill_type and getattr(fill.start_color, "rgb", None):
+            color = fill.start_color.rgb
+            if color and color not in {"00000000", "FFFFFFFF", "FF000000"}:
+                return True
+
+    first_value = row[0].value if row else None
+    other_values = [c.value for c in row[1:]] if len(row) > 1 else []
+    if first_value and all(v in (None, "") for v in other_values):
+        return True
+    return False
+
+
+def _extract_internal_extension(values: List[str]) -> Optional[str]:
+    """Ищет первый короткий номер (3–5 цифр) в наборе значений строки."""
+
+    for raw in values:
+        if raw is None:
+            continue
+        text = str(raw)
+        for match in re.findall(r"[\d\s\+\-\(\)]+", text):
+            digits = re.sub(r"[\s\-\+\(\)]", "", match)
+            if digits.isdigit() and 3 <= len(digits) <= 5:
+                return digits
+    return None
+
+
+def parse_raw_department_table(filepath: str) -> List[RawContact]:
+    """Парсит «сырую» Excel-таблицу с отделами и сотрудниками."""
+
+    if not os.path.exists(filepath):
+        raise FileNotFoundError(filepath)
+
+    wb = load_workbook(filepath)
+    ws = wb.active
+    current_department: Optional[str] = None
+    raw_contacts: List[RawContact] = []
+
+    for row in ws.iter_rows():
+        values = [cell.value for cell in row]
+        if any(values):
+            if _is_department_row(row):
+                current_department = str(values[0]).strip()
+                continue
+
+            full_name = str(values[0]).strip() if values and values[0] else ""
+            if not full_name or not current_department:
+                continue
+
+            normalized_values = ["" if v is None else str(v) for v in values]
+            internal_extension = _extract_internal_extension(normalized_values)
+            raw_contacts.append(
+                RawContact(
+                    full_department_name=current_department,
+                    full_name=full_name,
+                    raw_row_data=normalized_values,
+                    internal_extension=internal_extension,
+                )
+            )
+
+    return raw_contacts
+
+
+def normalize_raw_contacts(raw_contacts: List[RawContact], dept_alias_map: Dict[str, str]) -> List[Contact]:
+    """Преобразует RawContact в модель Contact с использованием сокращений отделов."""
+
+    normalized: List[Contact] = []
+    for raw in raw_contacts:
+        group = dept_alias_map.get(raw.full_department_name, raw.full_department_name)
+        normalized.append(
+            Contact(
+                group=group,
+                name=raw.full_name,
+                office=raw.internal_extension or "",
+                mobile="",
+                other="",
+                photo="",
+            )
+        )
+    return normalized

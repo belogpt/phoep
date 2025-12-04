@@ -33,6 +33,7 @@
 <div class="mb-3 d-flex flex-wrap gap-2">
     <a class="btn btn-success" href="{{ url_for('phonebook.download_xml') }}">Скачать XML</a>
     <a class="btn btn-info text-white" href="{{ url_for('phonebook.export_excel') }}">Экспорт в Excel</a>
+    <a class="btn btn-outline-info" href="{{ url_for('phonebook.import_raw_upload') }}">Импорт из таблицы отделов</a>
     <form class="d-inline" action="{{ url_for('phonebook.import_excel') }}" method="post" enctype="multipart/form-data">
         <div class="input-group">
             <input type="file" class="form-control" name="excel_file" accept=".xls,.xlsx" required>
