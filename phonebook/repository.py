@@ -7,8 +7,8 @@ from typing import List, Tuple
 from .models import Contact, Group
 
 CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'Config.cfg')
-DEFAULT_REMOTE_DIR = './data'
-PHONEBOOK_FILENAME = 'RemotePhonebook.xml'
+DEFAULT_REMOTE_DIR = '/app/data'
+PHONEBOOK_FILENAME = os.environ.get("PHONEBOOK_FILENAME", "rem.xml")
 MAX_GROUPS = 50
 MAX_NAME_LENGTH = 99
 MAX_PHONE_LENGTH = 32

@@ -142,7 +142,12 @@ def download_xml():
     _, phonebook_path = repository.get_paths()
     if not os.path.exists(phonebook_path):
         repository.ensure_environment()
-    return send_file(phonebook_path, mimetype='application/xml', as_attachment=True, download_name='RemotePhonebook.xml')
+    return send_file(
+        phonebook_path,
+        mimetype='application/xml',
+        as_attachment=True,
+        download_name=repository.PHONEBOOK_FILENAME,
+    )
 
 
 @phonebook_bp.route('/export/excel')
