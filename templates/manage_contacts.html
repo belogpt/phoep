@@ -16,7 +16,7 @@
         </thead>
         <tbody id="contacts-body">
             {% for contact in contacts %}
-            <tr draggable="true" data-contact-id="{{ contact.contact_id }}">
+            <tr draggable="true" data-contact-id="{{ contact.contact_id }}" data-group="{{ contact.group }}">
                 <td class="text-center align-middle drag-handle">{{ loop.index }}</td>
                 <td class="align-middle">{{ group_prefixes.get(contact.group, '') }}{{ contact.group }}</td>
                 <td class="align-middle">{{ contact.name }}</td>
@@ -61,6 +61,9 @@ document.addEventListener('DOMContentLoaded', () => {
         event.preventDefault();
         const targetRow = event.target.closest('tr');
         if (!draggedRow || !targetRow || draggedRow === targetRow) {
+            return;
+        }
+        if (draggedRow.dataset.group !== targetRow.dataset.group) {
             return;
         }
         const bounding = targetRow.getBoundingClientRect();
