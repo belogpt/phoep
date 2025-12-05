@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% block content %}
+<h3>Порядок контактов</h3>
+<p class="text-muted">Перетащите строки, чтобы изменить расположение контактов в XML и нажмите «Сохранить порядок».</p>
+<div class="table-responsive">
+    <table class="table table-bordered" id="contacts-table">
+        <thead>
+            <tr>
+                <th style="width: 70px;">№</th>
+                <th>Группа</th>
+                <th>Имя</th>
+                <th>Рабочий</th>
+                <th>Мобильный</th>
+                <th>Другой</th>
+            </tr>
+        </thead>
+        <tbody id="contacts-body">
+            {% for contact in contacts %}
+            <tr draggable="true" data-contact-id="{{ contact.contact_id }}">
+                <td class="text-center align-middle drag-handle">{{ loop.index }}</td>
+                <td class="align-middle">{{ group_prefixes.get(contact.group, '') }}{{ contact.group }}</td>
+                <td class="align-middle">{{ contact.name }}</td>
+                <td class="align-middle">{{ contact.office }}</td>
+                <td class="align-middle">{{ contact.mobile }}</td>
+                <td class="align-middle">{{ contact.other }}</td>
+            </tr>
+            {% else %}
+                <tr><td colspan="6" class="text-center">Контакты не найдены</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+<form id="contact-order-form" method="post" action="{{ url_for('phonebook.reorder_contacts') }}" class="d-flex gap-2">
+    <input type="hidden" name="order" id="contact-order-input">
+    <button type="submit" class="btn btn-primary">Сохранить порядок</button>
+    <a class="btn btn-secondary" href="{{ url_for('phonebook.index') }}">Назад</a>
+</form>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const tbody = document.getElementById('contacts-body');
+    const orderInput = document.getElementById('contact-order-input');
+    let draggedRow = null;
+
+    function updateOrderNumbers() {
+        Array.from(tbody.querySelectorAll('tr')).forEach((row, idx) => {
+            const cell = row.querySelector('.drag-handle');
+            if (cell) {
+                cell.textContent = String(idx + 1).padStart(2, '0');
+            }
+        });
+    }
+
+    tbody.addEventListener('dragstart', (event) => {
+        draggedRow = event.target.closest('tr');
+        event.dataTransfer.effectAllowed = 'move';
+    });
+
+    tbody.addEventListener('dragover', (event) => {
+        event.preventDefault();
+        const targetRow = event.target.closest('tr');
+        if (!draggedRow || !targetRow || draggedRow === targetRow) {
+            return;
+        }
+        const bounding = targetRow.getBoundingClientRect();
+        const offset = bounding.y + bounding.height / 2;
+        if (event.clientY - offset > 0) {
+            targetRow.after(draggedRow);
+        } else {
+            targetRow.before(draggedRow);
+        }
+        updateOrderNumbers();
+    });
+
+    tbody.addEventListener('dragend', () => {
+        draggedRow = null;
+    });
+
+    document.getElementById('contact-order-form').addEventListener('submit', () => {
+        const order = Array.from(tbody.querySelectorAll('tr')).map(row => Number(row.dataset.contactId));
+        orderInput.value = JSON.stringify(order);
+    });
+
+    updateOrderNumbers();
+});
+</script>
+{% endblock %}

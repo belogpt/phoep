@@ -83,6 +83,39 @@ def sort_contacts_by_name():
     return redirect(url_for('phonebook.index'))
 
 
+@phonebook_bp.route('/contacts/reorder', methods=['GET', 'POST'])
+def reorder_contacts():
+    if request.method == 'POST':
+        payload = request.get_json(silent=True)
+        if payload and isinstance(payload.get('order'), list):
+            order = payload['order']
+        else:
+            raw_order = request.form.get('order', '[]')
+            try:
+                parsed = json.loads(raw_order)
+                order = parsed if isinstance(parsed, list) else []
+            except json.JSONDecodeError:
+                order = []
+        try:
+            repository.update_contact_order(order)
+            flash('Порядок контактов обновлён', 'success')
+        except Exception as exc:  # noqa: BLE001
+            flash(f'Не удалось обновить порядок: {exc}', 'danger')
+        return redirect(url_for('phonebook.reorder_contacts'))
+
+    contacts = repository.load_contacts()
+    groups = repository.get_groups_with_counts()
+    group_prefixes = {
+        g.name: f"{g.order_index:02d}. " if g.order_index else ''
+        for g in groups
+    }
+    return render_template(
+        'manage_contacts.html',
+        contacts=contacts,
+        group_prefixes=group_prefixes,
+    )
+
+
 @phonebook_bp.route('/contact/new', methods=['GET', 'POST'])
 def new_contact():
     if request.method == 'POST':
