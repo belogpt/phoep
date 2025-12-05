@@ -68,6 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
     tbody.addEventListener('dragstart', (event) => {
         draggedRow = event.target.closest('tr');
         event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', '');
     });
 
     tbody.addEventListener('dragover', (event) => {
