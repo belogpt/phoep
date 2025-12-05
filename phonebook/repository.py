@@ -329,3 +329,29 @@ def update_group_order(new_order: List[str]) -> None:
         order_map = _normalize_order_map(order_map, cleaned_order)
         save_group_order(order_map)
         save_contacts(current_contacts, preserved_groups=existing_groups if not REMOVE_EMPTY_GROUPS else None)
+
+
+def update_contact_order(new_order: List[int]) -> None:
+    """Обновляет порядок контактов в XML согласно переданному списку ID."""
+
+    contacts = load_contacts()
+    id_map = {c.contact_id: c for c in contacts}
+    seen: set[int] = set()
+    cleaned: list[Contact] = []
+
+    for raw_id in new_order:
+        try:
+            cid = int(raw_id)
+        except (TypeError, ValueError):
+            continue
+        if cid in seen or cid not in id_map:
+            continue
+        cleaned.append(id_map[cid])
+        seen.add(cid)
+
+    for contact in contacts:
+        if contact.contact_id not in seen:
+            cleaned.append(contact)
+
+    preserved = list({c.group for c in contacts}) if not REMOVE_EMPTY_GROUPS else None
+    save_contacts(cleaned, preserved_groups=preserved)
